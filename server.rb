@@ -9,6 +9,10 @@ configure do
   Tracker = Tracker.new
 end
 
+configure :production do
+  require 'newrelic_rpm' if ENV['HEROKU']
+end
+
 before do
   content_type 'text/plain'
   params.delete :splat

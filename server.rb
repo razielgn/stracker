@@ -12,6 +12,7 @@ configure do
 end
 
 configure :production do
+  require 'rpm_contrib' if ENV['HEROKU']
   require 'newrelic_rpm' if ENV['HEROKU']
 end
 

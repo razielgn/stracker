@@ -1,0 +1,39 @@
+!!!
+%html
+	%head
+		%title= "#{Tracker.tracker_id} - STracker Status"
+
+	%body
+		%p
+			%h1 Configuration
+			Tracker id:
+			%b= Tracker.tracker_id
+			%br
+			Announce interval: 
+			%b= Tracker.announce_interval
+			%br
+			Timeout interval:
+			%b= Tracker.timeout_interval
+			%br
+			Minimal announce interval:
+			%b= Tracker.min_announce_interval
+			%br
+			Allow unregistered torrents:
+			%b= Tracker.allow_unregistered_torrents
+			%br
+			Allow non-compact responses:
+			%b= Tracker.allow_noncompact
+		%p
+			%h1= "Total torrents: #{@torrents.size}"
+			%ul
+				- @torrents.each do |torrent|
+					%li
+						%h2= torrent.id
+						Seeders: 
+						%b= torrent.seeders
+						%br
+						Leechers: 
+						%b= torrent.leechers
+						%br
+						Total peers: 
+						%b= torrent.peers.size

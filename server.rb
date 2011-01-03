@@ -1,6 +1,8 @@
 require 'sinatra'
 require 'mongoid'
+require 'haml'
 require File.join(settings.root, "lib/tracker")
+
 include STracker
 
 set :run, true

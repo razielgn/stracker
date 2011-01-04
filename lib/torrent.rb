@@ -5,24 +5,42 @@ module STracker
     identity :type => String
     field :seeders, :type => Integer, :default => 0
     field :leechers, :type => Integer, :default => 0
+    field :completed, :type => Integer, :default => 0
   
     embeds_many :peers
   
     def update_torrent(request)
+      # Checks if the peer was already in list
       peer = self.peers.select{|p| p.id == request.peer_id}.first
     
-      if (!peer)
+      # If not, adds it.
+      if peer.nil?
         peer = add_peer(request)
         self.peers << peer
+      else
+        peer.update(request)
       end
-    
-      peer.update(request)
+      
+      if peer.left == 0
+        self.seeders += 1
+      else
+        self.leechers += 1
+      end
+      
+      self.completed += 1 if request.event == "completed"
+      
+      self.save
     end
 
     def clear_zombies(cutoff)
       zombies = self.peers.select{|p| p.last_announce <= cutoff}
       count = zombies.size
-      zombies.each {|zombie| zombie.delete }
+      
+      if count > 0
+        zombies.each {|zombie| zombie.delete }
+        self.save 
+      end
+      
       count
     end
   
@@ -58,9 +76,9 @@ module STracker
   
     def add_peer(request)
       peer = Peer.new(:id => request.peer_id,
-                       :port => request.port,
-                       :ip => request.ip,
-                       :last_announce => Time.now)
+                      :port => request.port,
+                      :ip => request.ip,
+                      :last_announce => Time.now)
     end
   
     def min(n1, n2)

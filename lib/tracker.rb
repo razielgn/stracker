@@ -47,18 +47,17 @@ module STracker
         zombies = torrent.clear_zombies(Time.now - @timeout_interval)
         @logger.info "Torrent had #{zombies} in it, removed them."
         
-        torrent.save!
-        
         peers = torrent.get_peers(request.numwant, request.compact)
         @logger.info "Sent #{peers.count} to #{request.ip} for torrent #{request.info_hash}."
         
-        return {"complete" => torrent.seeders,
+        {"complete" => torrent.seeders,
          "incomplete" => torrent.leechers,
          "interval" => @announce_interval,
          "tracker id" => @tracker_id,
          "min interval" => @min_announce_interval,
-         "peers" => peers
-         }.bencode
+         "peers" => peers,
+         "downloaded" => torrent.completed}.bencode
+        
       rescue TrackerException => ex
         @logger.info "Request from #{req["ip"]} failed. Reason: #{ex.message}"
         {"failure reason" => ex.message}.bencode
@@ -66,7 +65,26 @@ module STracker
       end
     end
     
-    def scrape
+    def scrape(params)
+      if params.keys.include? "info_hash"
+        torrents = [Torrent.find((params["info_hash"].unpack "H*").first)]
+      else
+        torrents = Torrent.all
+      end
+      
+      lolz = {}
+      
+      torrents.each do |torrent|
+        lolz.merge!({
+          [torrent.id].pack("H*") => {
+            "complete" => torrent.seeders,
+            "incomplete" => torrent.leechers,
+            "downloaded" => torrent.completed
+          }
+        })
+      end
+      
+      {"files" => lolz}.bencode
     end
     
     def status
@@ -75,10 +93,14 @@ module STracker
     
     private
     
+    def send_error(msg)
+      {"failure reason" => msg}.bencode
+    end
+    
     def init_mongo      
       Mongoid.configure do |config|
-        config.logger = Logger.new(File.join(settings.root, "log/mongoid.log"), 2, 1024 * 1024 * 2)
-        config.master = Mongo::Connection.from_uri(@mongo_uri).db(URI.parse(@mongo_uri).path.gsub(/^\//, ''))
+        logger = Logger.new(File.join(settings.root, "log/mongoid.log"), 2, 1024 * 1024 * 2)
+        config.master = Mongo::Connection.from_uri(@mongo_uri, :logger => logger).db(URI.parse(@mongo_uri).path.gsub(/^\//, ''))
       end
     end
   end

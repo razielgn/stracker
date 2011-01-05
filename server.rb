@@ -8,7 +8,10 @@ include STracker
 set :run, true
 
 configure do
-  Tracker = Tracker.new
+  uri = URI.parse(ENV["REDISTOGO_URL"])
+  REDIS = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+  
+  SinatraTracker = Tracker.new
 end
 
 configure :production do
@@ -25,21 +28,17 @@ get '/announce' do
     params.merge!({"ip" => @env['REMOTE_ADDR']})
   end
   
-  Tracker.announce(params)
+  SinatraTracker.announce(params)
 end
 
 get '/scrape' do
-  Tracker.scrape(params)
+  SinatraTracker.scrape(params)
 end
 
 get '/status' do
   content_type "text/html"
-  @torrents = Tracker.status
+  @torrents = SinatraTracker.status
   haml :status
 end
 
 get '/favicon.ico' do; end
-
-get '/lolz' do
-  open(NewRelic::Control.instance.config_file).read
-end

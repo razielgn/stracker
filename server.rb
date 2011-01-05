@@ -1,8 +1,8 @@
 require 'sinatra'
 require 'mongoid'
 require 'haml'
-require File.join(settings.root, "lib/tracker")
 
+require File.join(settings.root, "lib/tracker")
 include STracker
 
 set :run, true
@@ -40,3 +40,7 @@ get '/status' do
 end
 
 get '/favicon.ico' do; end
+
+get '/lolz' do
+  open(NewRelic::Control.instance.config_file).read
+end

@@ -1,5 +1,3 @@
-require 'ip'
-
 module STracker
   class Peer
     include Mongoid::Document
@@ -25,19 +23,10 @@ module STracker
     end
   
     def get_compact
-      if self.ip =~ //
-        octets = IP::Address::IPv4.new(self.ip).octets
-      elsif self.ip =~ //
-        octets = IP::Address::IPv6.new(self.ip).octets
-      end
-    
-      if self.port < 256
-        port_hex = "\x00" + [self.port.to_s(16).hex].pack("C")
-      else
-        port_hex = [self.port.to_s(16).hex].pack("C")
-      end
-
-      "#{octets.collect{|o| [o.to_s(16).hex].pack "C"}.join}#{port_hex}"
+      ip = self.ip.split('.').collect{|n| [n.to_i.to_s(16)].pack("H2")}.join
+      port = [self.port.to_s(16)].pack("H4")
+      
+      "#{ip}#{port}"
     end
   
     def get_noncompact

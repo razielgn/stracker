@@ -9,7 +9,7 @@ module STracker
         raise TrackerException, "Request was invalid!"
       end
     
-      @info_hash = (request["info_hash"].unpack "H*").first
+      @info_hash = Tracker.bin2hex(request["info_hash"])
       @peer_id = request["peer_id"]
       @port = request["port"].to_i
       @uploaded = request["uploaded"].to_i

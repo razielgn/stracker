@@ -67,7 +67,7 @@ module STracker
     
     def scrape(params)
       if params.keys.include? "info_hash"
-        torrents = [Torrent.find((params["info_hash"].unpack "H*").first)]
+        torrents = [Torrent.find(self.bin2hex(params["info_hash"]))]
       else
         torrents = Torrent.all
       end
@@ -76,7 +76,7 @@ module STracker
       
       torrents.each do |torrent|
         lolz.merge!({
-          [torrent.id].pack("H*") => {
+          self.hex2bin(torrent.id) => {
             "complete" => torrent.seeders,
             "incomplete" => torrent.leechers,
             "downloaded" => torrent.completed
@@ -89,6 +89,14 @@ module STracker
     
     def status
       Torrent.all
+    end
+    
+    def self.bin2hex(bin)
+      (bin.unpack "H*").first
+    end
+    
+    def self.hex2bin(hex)
+      [hex].pack "H*"
     end
     
     private

@@ -10,6 +10,7 @@ module STracker
     
     set :root, File.dirname(__FILE__)
     set :show_exceptions, true if development?
+    enable :logging, :raise_errors
 
     configure do  
       $rootdir = options.root

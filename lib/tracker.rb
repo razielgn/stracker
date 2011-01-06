@@ -29,7 +29,7 @@ module STracker
     def announce(req)
       begin
         request = Request.new(req)
-        @logger.info "Request from #{request.ip} with torrent #{request.info_hash}."        
+        #@logger.info "Request from #{request.ip} with torrent #{request.info_hash}."        
         torrent = Torrent.find(:one, :conditions => {:_id => request.info_hash}).first
         
         if torrent.nil?
@@ -48,10 +48,10 @@ module STracker
         torrent.update_torrent(request)
         
         zombies = torrent.clear_zombies(Time.now - @timeout_interval)
-        @logger.info "Torrent had #{zombies} in it, removed them."
+        @logger.info "Torrent had #{zombies} in it, removed them." if zombies > 0
         
         peers = torrent.get_peers(request.numwant, request.compact)
-        @logger.info "Sent #{peers.count} to #{request.ip} for torrent #{request.info_hash}."
+        @logger.info "Sent #{peers.count} peers to #{request.ip} for torrent #{request.info_hash}."
         
         {"complete" => torrent.seeders,
          "incomplete" => torrent.leechers,
@@ -63,8 +63,7 @@ module STracker
         
       rescue TrackerException => ex
         @logger.info "Request from #{req["ip"]} failed. Reason: #{ex.message}"
-        send_error(ex.message)
-        return
+        return send_error(ex.message)
       end
     end
     
@@ -72,10 +71,9 @@ module STracker
       if params.keys.include? "info_hash"
         torrents = [Torrent.find(STracker::Tracker.bin2hex(params["info_hash"]))]
       elsif @full_scrape
-        torrents = Torrent.all
+        torrents = Torrent.only(:seeders, :leechers, :completed)
       else
-        send_error("Full scrape is not permitted!")
-        return
+        return send_error("Full scrape is not permitted!")
       end
       
       out = {}
@@ -89,7 +87,11 @@ module STracker
         })
       end
       
-      {"files" => out}.bencode
+      if not out.empty?
+        {"files" => out}.bencode
+      else
+        send_error("The tracker is empty!")
+      end
     end
     
     def status

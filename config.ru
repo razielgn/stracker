@@ -1,3 +1,7 @@
 require File.dirname(__FILE__) + "/server.rb"
 
-STracker::SinatraTracker.run!
+if ENV["HEROKU"]
+  run STracker::SinatraTracker
+else
+  STracker::SinatraTracker.run!
+end

@@ -5,6 +5,7 @@ defaults: &defaults
   min_announce_interval: 900
   allow_unregistered_torrents: true
   allow_noncompact: true
+  full_scrape: true
   
 development:
   <<: *defaults
@@ -13,3 +14,7 @@ development:
 production:
   <<: *defaults
   mongo_uri: <%= ENV['MONGOLAB_URL'] %>
+  
+test:
+  <<: *defaults
+  mongo_uri: mongodb://test:test@127.0.0.1:27017/tracker_test

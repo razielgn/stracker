@@ -1,13 +1,14 @@
-module STracker
+module STracker  
   class Torrent
     include Mongoid::Document
+    include STracker
   
     identity :type => String
     field :seeders, :type => Integer, :default => 0
     field :leechers, :type => Integer, :default => 0
     field :completed, :type => Integer, :default => 0
   
-    embeds_many :peers
+    embeds_many :peers, :class_name => "STracker::Peer"
   
     def update_torrent(request)
       # Checks if the peer was already in list
@@ -83,6 +84,43 @@ module STracker
   
     def min(n1, n2)
       if n1 > n2; n2; else n1; end;
+    end
+  end
+  
+  class Peer
+    include Mongoid::Document
+  
+    identity :type => String
+    field :ip, :type => String
+    field :port, :type => Integer
+    field :last_announce, :type => Time
+  
+    field :downloaded, :type => Integer, :default => 0
+    field :uploaded, :type => Integer, :default => 0
+    field :left, :type => Integer
+  
+    embedded_in :torrent, :inverse_of => :peers
+  
+    def update(request)
+      self.ip = request.ip
+      self.port = request.port
+      self.downloaded = request.downloaded
+      self.uploaded = request.uploaded
+      self.left = request.left
+      self.last_announce = Time.now
+    end
+  
+    def get_compact
+      ip = self.ip.split('.').collect{|n| [n.to_i.to_s(16)].pack("H2")}.join
+      port = [self.port.to_s(16)].pack("H4")
+      
+      "#{ip}#{port}"
+    end
+  
+    def get_noncompact
+      {"peer id" => self.id,
+       "ip" => self.ip,
+       "port" => self.port}
     end
   end
 end

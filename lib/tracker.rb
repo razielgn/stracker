@@ -2,23 +2,26 @@ require 'bencode'
 require 'uri'
 require 'yaml'
 require 'erb'
-require File.join(settings.root, "lib/clogger")
-require File.join(settings.root, "lib/torrent")
-require File.join(settings.root, "lib/peer")
-require File.join(settings.root, "lib/request")
+require File.join($rootdir, "lib/clogger")
+require File.join($rootdir, "lib/torrent")
+require File.join($rootdir, "lib/request")
 
 module STracker
   class TrackerException < Exception; end
   
   class Tracker
-    attr_reader :tracker_id, :announce_interval, :timeout_interval, :min_announce_interval, :allow_unregistered_torrents, :allow_noncompact
-  
+    attr_reader :tracker_id, :announce_interval, :timeout_interval, :min_announce_interval, :allow_unregistered_torrents, :allow_noncompact, :full_scrape
+    
+    if $environment == "test"
+      attr_writer :tracker_id, :announce_interval, :timeout_interval, :min_announce_interval, :allow_unregistered_torrents, :allow_noncompact, :full_scrape
+    end
+    
     def initialize
-      config = YAML.load_file File.join(settings.root, "config/tracker.yaml")
-      config[settings.environment.to_s].each { |key, value| instance_variable_set("@#{key}", value) }
+      config = YAML.load_file File.join($rootdir, "config/tracker.yaml")
+      config[$environment].each { |key, value| instance_variable_set("@#{key}", value) }
       @mongo_uri = ERB.new(@mongo_uri).result
       
-      @logger = CustomLogger.new(File.join(settings.root, "log/tracker.log"), 2, 1024 * 1024 * 2)
+      @logger = CustomLogger.new(File.join($rootdir, "log/tracker.log"), 2, 1024 * 1024 * 2)
       
       init_mongo
     end
@@ -60,23 +63,25 @@ module STracker
         
       rescue TrackerException => ex
         @logger.info "Request from #{req["ip"]} failed. Reason: #{ex.message}"
-        {"failure reason" => ex.message}.bencode
+        send_error(ex.message)
         return
       end
     end
     
     def scrape(params)
       if params.keys.include? "info_hash"
-        torrents = [Torrent.find(self.bin2hex(params["info_hash"]))]
-      else
+        torrents = [Torrent.find(STracker::Tracker.bin2hex(params["info_hash"]))]
+      elsif @full_scrape
         torrents = Torrent.all
+      else
+        send_error("Full scrape is not permitted!")
+        return
       end
       
-      lolz = {}
-      
+      out = {}
       torrents.each do |torrent|
-        lolz.merge!({
-          self.hex2bin(torrent.id) => {
+        out.merge!({
+          STracker::Tracker.hex2bin(torrent.id) => {
             "complete" => torrent.seeders,
             "incomplete" => torrent.leechers,
             "downloaded" => torrent.completed
@@ -84,11 +89,11 @@ module STracker
         })
       end
       
-      {"files" => lolz}.bencode
+      {"files" => out}.bencode
     end
     
     def status
-      Torrent.all
+      {:torrents => Torrent.all}
     end
     
     def self.bin2hex(bin)
@@ -107,7 +112,7 @@ module STracker
     
     def init_mongo      
       Mongoid.configure do |config|
-        logger = Logger.new(File.join(settings.root, "log/mongoid.log"), 2, 1024 * 1024 * 2)
+        logger = Logger.new(File.join($rootdir, "log/mongoid.log"), 2, 1024 * 1024 * 2)
         config.master = Mongo::Connection.from_uri(@mongo_uri, :logger => logger).db(URI.parse(@mongo_uri).path.gsub(/^\//, ''))
       end
     end

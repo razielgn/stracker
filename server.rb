@@ -16,7 +16,7 @@ module STracker
       $rootdir = options.root
       $environment = options.environment.to_s
     
-      require File.join($rootdir, "lib/tracker")
+      require File.join($rootdir, "lib", "tracker")
       
       TRACKER = Tracker.new
     end

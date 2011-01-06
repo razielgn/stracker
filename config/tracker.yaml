@@ -1,7 +1,7 @@
 defaults: &defaults
   tracker_id: SinatraTracker
   announce_interval: 1800
-  timeout_interval: 2100
+  timeout_interval: 2000
   min_announce_interval: 900
   allow_unregistered_torrents: true
   allow_noncompact: true

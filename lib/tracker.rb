@@ -2,9 +2,10 @@ require 'bencode'
 require 'uri'
 require 'yaml'
 require 'erb'
-require File.join($rootdir, "lib/clogger")
-require File.join($rootdir, "lib/torrent")
-require File.join($rootdir, "lib/request")
+require File.join($rootdir, "lib", "clogger")
+require File.join($rootdir, "lib", "peer")
+require File.join($rootdir, "lib", "torrent")
+require File.join($rootdir, "lib", "request")
 
 module STracker
   class TrackerException < Exception; end
@@ -45,7 +46,7 @@ module STracker
           raise TrackerException, "Non-compact response is not supported!"
         end
         
-        torrent.update_torrent(request)
+        torrent.update_torrent(request, @min_announce_interval)
         
         zombies = torrent.clear_zombies(Time.now - @timeout_interval)
         @logger.info "Torrent had #{zombies} in it, removed them." if zombies > 0

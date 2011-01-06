@@ -1,11 +1,11 @@
 # BitTorrent Tracker with Ruby flavor!
-I'm trying to keep it as simple as possible!
+I'm trying to keep it as simple as possible!  
 It uses mongodb! :D
 
-__PERFORMANCE__
+__PERFORMANCE__  
 I measured 2-4ms responses on Heroku.
 
-__CONFIG__
+__CONFIG__  
 To change config see config/tracker.yaml
 
 * **tracker_id**: String. It is also reported to the clients.

@@ -1,7 +1,6 @@
 module STracker  
   class Torrent
     include Mongoid::Document
-    include STracker
   
     identity :type => String
     field :seeders, :type => Integer, :default => 0
@@ -10,36 +9,55 @@ module STracker
   
     embeds_many :peers, :class_name => "STracker::Peer"
   
-    def update_torrent(request)
+    def update_torrent(request, min_announce)
       # Checks if the peer was already in list
-      peer = self.peers.select{|p| p.id == request.peer_id}.first
+      peer = peers.select{|p| p.id == request.peer_id}.first
     
       # If not, adds it.
       if peer.nil?
-        peer = add_peer(request)
-        self.peers << peer
+        peer = Peer.new(:id => request.peer_id, :port => request.port,
+                        :ip => request.ip, :last_announce => Time.now,
+                        :downloaded => request.downloaded, :uploaded => request.uploaded,
+                        :left => request.left)
+        peers << peer
+        peer.save
+        
+        if peer.left == 0
+          inc(:seeders, 1)
+        else
+          inc(:leechers, 1)
+        end
       else
-        peer.update(request)
+        if (Time.now - peer.last_announce) < min_announce
+          raise TrackerException.new "Respect the announce interval!"
+        end
+        
+        peer.update_self(request) 
+        
+        if request.event == "completed"
+          inc(:completed, 1)
+          inc(:seeders, 1)
+          dec(:leechers, 1)
+        end
       end
-      
-      if peer.left == 0
-        self.seeders += 1
-      else
-        self.leechers += 1
-      end
-      
-      self.completed += 1 if request.event == "completed"
-      
-      self.save
     end
 
     def clear_zombies(cutoff)
-      zombies = self.peers.select{|p| p.last_announce <= cutoff}
+      zombies = peers.select{|p| p.last_announce <= cutoff}
       count = zombies.size
       
       if count > 0
-        zombies.each {|zombie| zombie.delete }
-        self.save 
+        zombies.each do |zombie|
+          if zombie.left == 0
+            inc(:seeders, -1)
+          else
+            inc(:leechers, -1)
+          end
+          
+          zombie.delete
+        end
+        
+        save 
       end
       
       count
@@ -55,7 +73,7 @@ module STracker
       noncompact = []
     
       while (limit > 0)
-        current = self.peers[(start += 1) % peers_size]
+        current = peers[(start += 1) % peers_size]
       
         if compact
           compact_s += current.get_compact
@@ -75,52 +93,8 @@ module STracker
   
     private
   
-    def add_peer(request)
-      peer = Peer.new(:id => request.peer_id,
-                      :port => request.port,
-                      :ip => request.ip,
-                      :last_announce => Time.now)
-    end
-  
     def min(n1, n2)
       if n1 > n2; n2; else n1; end;
-    end
-  end
-  
-  class Peer
-    include Mongoid::Document
-  
-    identity :type => String
-    field :ip, :type => String
-    field :port, :type => Integer
-    field :last_announce, :type => Time
-  
-    field :downloaded, :type => Integer, :default => 0
-    field :uploaded, :type => Integer, :default => 0
-    field :left, :type => Integer
-  
-    embedded_in :torrent, :inverse_of => :peers
-  
-    def update(request)
-      self.ip = request.ip
-      self.port = request.port
-      self.downloaded = request.downloaded
-      self.uploaded = request.uploaded
-      self.left = request.left
-      self.last_announce = Time.now
-    end
-  
-    def get_compact
-      ip = self.ip.split('.').collect{|n| [n.to_i.to_s(16)].pack("H2")}.join
-      port = [self.port.to_s(16)].pack("H4")
-      
-      "#{ip}#{port}"
-    end
-  
-    def get_noncompact
-      {"peer id" => self.id,
-       "ip" => self.ip,
-       "port" => self.port}
     end
   end
 end

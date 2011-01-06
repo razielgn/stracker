@@ -26,10 +26,12 @@ module STracker
     end
 
     before do
+      @env['HTTP_X_REAL_IP'] ||= @env['REMOTE_ADDR']
+            
       if ["/scrape", "/announce"].include? request.env['REQUEST_PATH']
         content_type 'text/plain'
         params.delete :splat
-        params.merge!({"ip" => @env['REMOTE_ADDR']}) if not params.has_key? "ip"
+        params.merge!({"ip" => @env['HTTP_X_REAL_IP']}) if not params.has_key? "ip"
       end
     end
 

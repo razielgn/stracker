@@ -46,7 +46,9 @@ module STracker
           raise TrackerException, "Non-compact response is not supported!"
         end
         
-        torrent.update_torrent(request, @min_announce_interval)
+        outcome = torrent.update_torrent(request, @min_announce_interval)
+        
+        return "" if not outcome
         
         zombies = torrent.clear_zombies(Time.now - @timeout_interval)
         @logger.info "Torrent had #{zombies} in it, removed them." if zombies > 0
@@ -70,7 +72,7 @@ module STracker
     
     def scrape(params)
       if params.keys.include? "info_hash"
-        torrents = [Torrent.find(STracker::Tracker.bin2hex(params["info_hash"]))]
+        torrents = [] << Torrent.where(:_id => STracker::Tracker.bin2hex(params["info_hash"])).only(:seeders, :leechers, :completed).first
       elsif @full_scrape
         torrents = Torrent.only(:seeders, :leechers, :completed)
       else

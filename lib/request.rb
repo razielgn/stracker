@@ -10,7 +10,7 @@ module STracker
       end
     
       @info_hash = STracker::Tracker.bin2hex(request["info_hash"])
-      @peer_id = request["peer_id"]
+      @peer_id = STracker::Tracker.bin2hex(request["peer_id"])
       @port = request["port"].to_i
       @uploaded = request["uploaded"].to_i
       @downloaded = request["downloaded"].to_i

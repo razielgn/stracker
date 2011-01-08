@@ -1,12 +1,10 @@
 require 'sinatra/base'
 require 'mongoid'
 require 'haml'
-require 'exceptional'
+require 'exceptional' if ENV['HEROKU']
 
 module STracker
   class SinatraTracker < Sinatra::Base
-    
-    use Rack::Exceptional, ENV["EXCEPTIONAL_API_KEY"] if ENV["HEROKU"]
     
     set :root, File.dirname(__FILE__)
     set :show_exceptions, true if development?
@@ -20,9 +18,15 @@ module STracker
       
       TRACKER = Tracker.new
     end
+    
+    configure :test do
+      require 'rack/perftools_profiler'
+      use ::Rack::PerftoolsProfiler, :default_printer => 'gif', :mode => :objects
+    end
 
     configure :production do
       require 'newrelic_rpm' if ENV['HEROKU']
+      use Rack::Exceptional, ENV["EXCEPTIONAL_API_KEY"] if ENV["HEROKU"]
     end
 
     before do

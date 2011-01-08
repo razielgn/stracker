@@ -13,7 +13,7 @@ module STracker
 
     embedded_in :torrent, :inverse_of => :peers
 
-    def update_self(request)
+    def update_self(request)      
       self.ip = request.ip
       self.port = request.port
       self.downloaded = request.downloaded

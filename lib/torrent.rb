@@ -28,8 +28,16 @@ module STracker
           inc(:leechers, 1)
         end
       else
-        if (Time.now - peer.last_announce) < min_announce
-          raise TrackerException.new "Respect the announce interval!"
+        if request.event == "stopped"
+          if peer.left == 0
+            inc(:seeders, -1)
+          else
+            inc(:leechers, -1)
+          end
+          
+          peer.delete
+          
+          return false
         end
         
         peer.update_self(request) 
@@ -37,9 +45,11 @@ module STracker
         if request.event == "completed"
           inc(:completed, 1)
           inc(:seeders, 1)
-          dec(:leechers, 1)
+          inc(:leechers, -1)
         end
       end
+      
+      true
     end
 
     def clear_zombies(cutoff)
@@ -56,8 +66,6 @@ module STracker
           
           zombie.delete
         end
-        
-        save 
       end
       
       count

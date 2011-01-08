@@ -3,7 +3,7 @@ I'm trying to keep it as simple as possible!
 It uses mongodb! :D
 
 __PERFORMANCE__  
-I measured 2-4ms responses on Heroku.
+I measured 5-6ms responses on Heroku.
 
 __CONFIG__  
 To change config see config/tracker.yaml

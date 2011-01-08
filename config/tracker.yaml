@@ -5,7 +5,7 @@ defaults: &defaults
   min_announce_interval: 900
   allow_unregistered_torrents: true
   allow_noncompact: true
-  full_scrape: false
+  full_scrape: true
   
 development:
   <<: *defaults

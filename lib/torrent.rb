@@ -1,6 +1,7 @@
 module STracker  
   class Torrent
     include Mongoid::Document
+    store_in :torrents
   
     identity :type => String
     field :seeders, :type => Integer, :default => 0
@@ -9,7 +10,7 @@ module STracker
   
     embeds_many :peers, :class_name => "STracker::Peer"
   
-    def update_torrent(request, min_announce)
+    def update_torrent(request)
       # Checks if the peer was already in list
       peer = peers.select{|p| p.id == request.peer_id}.first
     
@@ -22,22 +23,11 @@ module STracker
         peers << peer
         peer.save
         
-        if peer.left == 0
-          inc(:seeders, 1)
-        else
-          inc(:leechers, 1)
-        end
+        inc(peer.left == 0 ? :seeders : :leechers, 1)
       else
         if request.event == "stopped"
-          if peer.left == 0
-            inc(:seeders, -1)
-          else
-            inc(:leechers, -1)
-          end
-          
+          inc(peer.left == 0 ? :seeders : :leechers, -1)
           peer.delete
-          
-          return false
         end
         
         peer.update_self(request) 
@@ -48,8 +38,6 @@ module STracker
           inc(:leechers, -1)
         end
       end
-      
-      true
     end
 
     def clear_zombies(cutoff)
@@ -58,12 +46,7 @@ module STracker
       
       if count > 0
         zombies.each do |zombie|
-          if zombie.left == 0
-            inc(:seeders, -1)
-          else
-            inc(:leechers, -1)
-          end
-          
+          inc(zombie.left == 0 ? :seeders : :leechers, -1)          
           zombie.delete
         end
       end
@@ -92,17 +75,13 @@ module STracker
         limit -= 1
       end
     
-      if compact
-        compact_s
-      else
-        noncompact
-      end
+      compact ? compact_s : noncompact
     end
   
     private
   
-    def min(n1, n2)
-      if n1 > n2; n2; else n1; end;
+    def min(value1, value2)
+      (value1 > value2) ? value2 : value1
     end
   end
 end

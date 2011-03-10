@@ -13,7 +13,7 @@ module STracker
 
     embedded_in :torrent, :inverse_of => :peers
 
-    def update_self(request)      
+    def update_self(request)
       self.ip = request.ip
       self.port = request.port
       self.downloaded = request.downloaded
@@ -28,7 +28,7 @@ module STracker
       ip = self.ip.split('.').collect{|n| [n.to_i.to_s(16)].pack("H2")}.join
       port = [self.port.to_s(16)].pack("H4")
     
-      "#{ip}#{port}"
+      ip + port
     end
 
     def get_noncompact

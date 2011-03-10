@@ -1,11 +1,5 @@
-require 'bencode'
-require 'uri'
-require 'yaml'
-require 'erb'
-require File.join($rootdir, "lib", "clogger")
-require File.join($rootdir, "lib", "peer")
-require File.join($rootdir, "lib", "torrent")
-require File.join($rootdir, "lib", "request")
+%w[bencode uri yaml erb].each {|lib| require lib}
+%w[clogger core_extensions peer torrent request].each {|lib| require File.join($rootdir, "lib", lib)}
 
 module STracker
   class TrackerException < Exception; end
@@ -13,24 +7,24 @@ module STracker
   class Tracker
     attr_reader :tracker_id, :announce_interval, :timeout_interval, :min_announce_interval, :allow_unregistered_torrents, :allow_noncompact, :full_scrape
     
-    if $environment == "test"
-      attr_writer :tracker_id, :announce_interval, :timeout_interval, :min_announce_interval, :allow_unregistered_torrents, :allow_noncompact, :full_scrape
-    end
-    
     def initialize
-      config = YAML.load_file File.join($rootdir, "config/tracker.yaml")
+      config = YAML.load_file File.join($rootdir, "config", "tracker.yaml")
       config[$environment].each { |key, value| instance_variable_set("@#{key}", value) }
+      
+      @logger = CustomLogger.new(File.join($rootdir, "log", "tracker.log"), 2, 1024 * 1024 * 2)
+
       @mongo_uri = ERB.new(@mongo_uri).result
-      
-      @logger = CustomLogger.new(File.join($rootdir, "log/tracker.log"), 2, 1024 * 1024 * 2)
-      
       init_mongo
     end
     
     def announce(req)
       begin
         request = Request.new(req)
-        #@logger.info "Request from #{request.ip} with torrent #{request.info_hash}."        
+        
+        if @allow_non_compact and not request.compact
+          raise TrackerException, "Non-compact response is not supported!"
+        end
+        
         torrent = Torrent.find(:one, :conditions => {:_id => request.info_hash}).first
         
         if torrent.nil?
@@ -42,19 +36,15 @@ module STracker
           end
         end
         
-        if @allow_non_compact && !request.compact
-          raise TrackerException, "Non-compact response is not supported!"
-        end
+        torrent.update_torrent(request)
         
-        outcome = torrent.update_torrent(request, @min_announce_interval)
-        
-        return "" if not outcome
+        return "" if request.event == "stopped"
         
         zombies = torrent.clear_zombies(Time.now - @timeout_interval)
         @logger.info "Torrent had #{zombies} in it, removed them." if zombies > 0
         
         peers = torrent.get_peers(request.numwant, request.compact)
-        @logger.info "Sent #{peers.count} peers to #{request.ip} for torrent #{request.info_hash}."
+        @logger.info "Sent #{request.compact ? (peers.size / 6)  : peers.count} peers to #{request.ip} for torrent #{request.info_hash}."
         
         {"complete" => torrent.seeders,
          "incomplete" => torrent.leechers,
@@ -63,7 +53,6 @@ module STracker
          "min interval" => @min_announce_interval,
          "peers" => peers,
          "downloaded" => torrent.completed}.bencode
-        
       rescue TrackerException => ex
         @logger.info "Request from #{req["ip"]} failed. Reason: #{ex.message}"
         return send_error(ex.message)
@@ -72,7 +61,7 @@ module STracker
     
     def scrape(params)
       if params.keys.include? "info_hash"
-        torrents = [] << Torrent.where(:_id => STracker::Tracker.bin2hex(params["info_hash"])).only(:seeders, :leechers, :completed).first
+        torrents = [] << Torrent.where(:_id => params["info_hash"].to_hex).only(:seeders, :leechers, :completed).first
       elsif @full_scrape
         torrents = Torrent.only(:seeders, :leechers, :completed)
       else
@@ -82,7 +71,7 @@ module STracker
       out = {}
       torrents.each do |torrent|
         out.merge!({
-          STracker::Tracker.hex2bin(torrent.id) => {
+          torrent.id.to_bin => {
             "complete" => torrent.seeders,
             "incomplete" => torrent.leechers,
             "downloaded" => torrent.completed
@@ -99,14 +88,6 @@ module STracker
     
     def status
       {:torrents => Torrent.all}
-    end
-    
-    def self.bin2hex(bin)
-      (bin.unpack "H*").first
-    end
-    
-    def self.hex2bin(hex)
-      [hex].pack "H*"
     end
     
     private

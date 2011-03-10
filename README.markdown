@@ -5,7 +5,7 @@ It uses mongodb! :D
 __PERFORMANCE__  
 I measured 5-6ms responses on Heroku.  
 
-__CONFIG__  
+__CONFIG__
 To change config see config/tracker.yaml
 * **tracker_id**: String. It is also reported to the clients.
 * **announce_interval**: In seconds.

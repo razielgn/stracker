@@ -8,20 +8,16 @@ module STracker
     
     set :root, File.dirname(__FILE__)
     set :show_exceptions, true if development?
+    set :static, false
     enable :logging, :raise_errors
 
-    configure do  
-      $rootdir = options.root
-      $environment = options.environment.to_s
+    configure do
+      $rootdir = settings.root
+      $environment = settings.environment.to_s
     
       require File.join($rootdir, "lib", "tracker")
       
       TRACKER = Tracker.new
-    end
-    
-    configure :test do
-      require 'rack/perftools_profiler'
-      use ::Rack::PerftoolsProfiler, :default_printer => 'gif', :mode => :objects
     end
 
     configure :production do
@@ -32,14 +28,14 @@ module STracker
     before do
       @env['HTTP_X_REAL_IP'] ||= @env['REMOTE_ADDR']
             
-      if ["/scrape", "/announce"].include? request.env['REQUEST_PATH']
+      if ["/scrape", "/announce"].include? request.path
         content_type 'text/plain'
         params.delete :splat
-        params.merge!({"ip" => @env['HTTP_X_REAL_IP']}) if not params.has_key? "ip"
+        params.merge!("ip" => @env['HTTP_X_REAL_IP']) if not params.has_key? "ip"
       end
     end
 
-    get '/announce' do  
+    get '/announce' do
       TRACKER.announce(params)
     end
 

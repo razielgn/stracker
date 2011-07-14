@@ -2,10 +2,10 @@
 I'm trying to keep it as simple as possible!  
 It uses mongodb! :D  
 
-__PERFORMANCE__  
+## PERFORMANCE ##
 I measured 5-6ms responses on Heroku.  
 
-__CONFIG__
+## CONFIG ##
 To change config see config/tracker.yaml
 
 * **tracker_id**: String. It is also reported to the clients.

@@ -7,6 +7,7 @@ I measured 5-6ms responses on Heroku.
 
 __CONFIG__
 To change config see config/tracker.yaml
+
 * **tracker_id**: String. It is also reported to the clients.
 * **announce_interval**: In seconds.
 * **timeout_interval**: In seconds. After the timeout the zombie peers will be purged.
